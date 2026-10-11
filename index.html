@@ -192,21 +192,6 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
     <p>Open <code>index.html</code> and paste your Supabase <b>Project URL</b> and <b>anon key</b> into <code>ADZET_CONFIG</code> near the bottom.</p>
   </section>
 
-  <!-- Auth -->
-  <section id="auth" class="center-card hidden">
-    <h1>Ads Profit Tracker</h1>
-    <p class="muted">Sign in to sync your products and campaigns to the cloud.</p>
-    <form id="auth-form">
-      <label>Email<input type="email" id="auth-email" required autocomplete="email"></label>
-      <label>Password<input type="password" id="auth-pass" required minlength="6" autocomplete="current-password"></label>
-      <div class="row">
-        <button type="submit" class="btn primary" data-mode="in">Sign in</button>
-        <button type="button" class="btn" id="btn-signup">Create account</button>
-      </div>
-      <p id="auth-msg" class="msg"></p>
-    </form>
-  </section>
-
   <!-- App -->
   <div id="app" class="hidden">
     <header class="topbar">
@@ -215,10 +200,6 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
         <button class="tab active" data-tab="breakeven" role="tab">Break-even CPA</button>
         <button class="tab" data-tab="campaigns" role="tab">All Campaigns</button>
       </nav>
-      <div class="user">
-        <span id="user-email" class="muted"></span>
-        <button class="btn small" id="btn-signout">Sign out</button>
-      </div>
     </header>
 
     <main>
@@ -282,7 +263,7 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
   }
 
   // ---------- state ----------
-  const state = { user: null, products: [], campaigns: [], adSets: [], ads: [], activeProduct: null };
+  const state = { products: [], campaigns: [], adSets: [], ads: [], activeProduct: null };
   let sb = null;
 
   const productOf = (campaign) => state.products.find((p) => p.id === campaign?.product_id);
@@ -307,26 +288,13 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
     sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
     const rawFrom = sb.from.bind(sb);
     sb.from = (t) => rawFrom(TABLES[t] || t);
-    bindAuth();
     bindTabs();
 
-    const { data } = await sb.auth.getSession();
-    await onSession(data.session);
-    sb.auth.onAuthStateChange((_e, session) => {
-      if ((session?.user?.id || null) !== (state.user?.id || null)) onSession(session);
-    });
+    await start();
   });
 
-  async function onSession(session) {
-    state.user = session?.user || null;
-    if (!state.user) {
-      $("#app").classList.add("hidden");
-      $("#auth").classList.remove("hidden");
-      return;
-    }
-    $("#auth").classList.add("hidden");
+  async function start() {
     $("#app").classList.remove("hidden");
-    $("#user-email").textContent = state.user.email;
     await loadAll();
     renderBreakeven();
     renderCampaigns();
@@ -348,27 +316,6 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
     if (!state.products.find((x) => x.id === state.activeProduct)) state.activeProduct = state.products[0]?.id || null;
   }
 
-  // ---------- auth ----------
-  function bindAuth() {
-    const msg = $("#auth-msg");
-    $("#auth-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      msg.className = "msg";
-      msg.textContent = "";
-      const { error } = await sb.auth.signInWithPassword({ email: $("#auth-email").value.trim(), password: $("#auth-pass").value });
-      if (error) msg.textContent = error.message;
-    });
-    $("#btn-signup").addEventListener("click", async () => {
-      msg.className = "msg";
-      const email = $("#auth-email").value.trim();
-      const password = $("#auth-pass").value;
-      if (!email || password.length < 6) { msg.textContent = "Enter an email and a password of 6+ characters."; return; }
-      const { data, error } = await sb.auth.signUp({ email, password });
-      if (error) { msg.textContent = error.message; return; }
-      if (!data.session) { msg.className = "msg ok"; msg.textContent = "Check your email to confirm, then sign in."; }
-    });
-    $("#btn-signout").addEventListener("click", () => sb.auth.signOut());
-  }
 
   function bindTabs() {
     $$(".tab").forEach((btn) =>
@@ -705,7 +652,7 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
     if (file.size > 5 * 1024 * 1024) return toast("Image must be under 5 MB", true);
     const ad = findRow("ads", adId);
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const path = `${state.user.id}/${adId}-${Date.now()}.${ext}`;
+    const path = `${adId}-${Date.now()}.${ext}`;
     toast("Uploading…");
     const { error } = await sb.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: false });
     if (error) return toast(error.message, true);
