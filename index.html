@@ -564,16 +564,12 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
 
   function campaignHtml(c, i = 0) {
     const th = thresholdsFor(c);
-    const options = ['<option value="">— choose product —</option>']
-      .concat(state.products.map((p) => `<option value="${p.id}" ${p.id === c.product_id ? "selected" : ""}>${esc(p.name)}</option>`))
-      .join("");
     const sets = state.adSets.filter((s) => s.campaign_id === c.id).map((s) => adSetHtml(s, th)).join("");
     return `
       <div class="card campaign${i % 2 === 1 ? " alt" : ""}" data-campaign="${c.id}">
         <div class="campaign-top">
           <div class="camp-no">#${i + 1}</div>
           <label class="name">Campaign name<input data-table="campaigns" data-id="${c.id}" data-field="name" value="${esc(c.name)}"></label>
-          <label class="prod">Product<select data-table="campaigns" data-id="${c.id}" data-field="product_id" data-kind="product">${options}</select></label>
           <button class="btn small danger" data-del="campaigns" data-id="${c.id}">Delete</button>
         </div>
         <div class="thresholds">
