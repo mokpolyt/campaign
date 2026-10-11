@@ -154,13 +154,15 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
 .pps.neg { color: var(--red); background: var(--red-bg); }
 
 /* even campaigns (2nd, 4th, 6th …) in light purple */
-.campaign.alt { background: #f6f1fc; border-color: #e0d3f3; }
-.campaign.alt .adset { background: #fbf8fe; border-color: #e6dcf5; border-left-color: #b7a2dd; }
-.campaign.alt .chip:not(.t):not(.b) { background: #ebe1f8; color: #5b3f8c; }
-.campaign.alt .pps:not(.pos):not(.neg) { background: #ebe1f8; }
+.campaign.alt { background: #ede4fa; border-color: #cdb9ee; border-left-color: #a58bd6; }
+.campaign.alt .adset { background: #f7f2fd; border-color: #d9c9f1; border-left-color: #a58bd6; }
+.campaign.alt .chip:not(.t):not(.b) { background: #ddd0f4; color: #5b3f8c; }
+.camp-no { font-weight: 700; color: var(--sage-600); padding-bottom: 10px; }
+.campaign.alt .camp-no { color: #7a56b8; }
+.campaign.alt .pps:not(.pos):not(.neg) { background: #ddd0f4; }
 .camp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .camp-head h2 { margin: 0; color: var(--sage-800); }
-.campaign { margin-bottom: 18px; }
+.campaign { margin-bottom: 18px; border-left: 6px solid var(--sage-200); }
 .campaign-top { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
 .campaign-top .name { flex: 2 1 220px; }
 .campaign-top .prod { flex: 1 1 180px; }
@@ -569,6 +571,7 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
     return `
       <div class="card campaign${i % 2 === 1 ? " alt" : ""}" data-campaign="${c.id}">
         <div class="campaign-top">
+          <div class="camp-no">#${i + 1}</div>
           <label class="name">Campaign name<input data-table="campaigns" data-id="${c.id}" data-field="name" value="${esc(c.name)}"></label>
           <label class="prod">Product<select data-table="campaigns" data-id="${c.id}" data-field="product_id" data-kind="product">${options}</select></label>
           <button class="btn small danger" data-del="campaigns" data-id="${c.id}">Delete</button>
