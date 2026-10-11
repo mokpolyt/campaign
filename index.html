@@ -134,7 +134,21 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
   margin-right: 6px; background: var(--c);
 }
 
+.profit-note { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #bfe0c3; font-size: 13px; color: var(--green); }
+.profit-note b { font-size: 15px; }
+
 /* ---------- Campaigns tab ---------- */
+.filter-bar { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+.filter-bar label { min-width: 200px; }
+.prod-group { margin-bottom: 30px; }
+.prod-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: var(--sage-100); border: 1px solid var(--sage-200); border-radius: var(--radius);
+  padding: 12px 16px; margin-bottom: 14px;
+}
+.prod-head h3 { margin: 0; color: var(--sage-800); }
+.prod-head .thresholds { margin: 6px 0 0; }
+.chip.p { background: var(--green-bg); color: var(--green); }
 .camp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .camp-head h2 { margin: 0; color: var(--sage-800); }
 .campaign { margin-bottom: 18px; }
@@ -383,7 +397,7 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
 
       <div class="result-box">
         <div class="stat" id="stat-profit"><div class="label">Profit kotor = Break-even CPA</div><div class="value" id="out-be">–</div><div class="hint" id="out-formula"></div></div>
-        <div class="stat target"><div class="label">Target CPA</div><div class="value" id="out-target">–</div><div class="hint" id="out-target-hint"></div></div>
+        <div class="stat target"><div class="label">Target CPA</div><div class="value" id="out-target">–</div><div class="hint" id="out-target-hint"></div><div class="profit-note" id="out-target-profit"></div></div>
         <div class="stat"><div class="label">Break-even ROAS</div><div class="value" id="out-roas">–</div><div class="hint">Harga jual ÷ break-even CPA</div></div>
       </div>
       <div class="legend">
@@ -400,6 +414,11 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
     $("#out-formula").textContent = `${rp(p.harga_jual)} − (${rp(p.hpp)} + ${rp(p.packing)} + ${rp(c.feeRp)})`;
     $("#out-target").textContent = rp(c.target);
     $("#out-target-hint").textContent = p.target_cpa != null ? `Manual override (recommended: ${rp(c.recommended)})` : `${p.target_ratio}% of break-even`;
+    const profit = c.breakeven - c.target;
+    const pct = Number(p.harga_jual) > 0 ? (profit / Number(p.harga_jual)) * 100 : 0;
+    $("#out-target-profit").innerHTML =
+      `Bila tercapai Target CPA, profit = <b>${rp(profit)}</b> per order` +
+      `<br><span class="muted">(Harga jual − HPP − packing − fee − Target CPA = ${rp(c.breakeven)} − ${rp(c.target)}) · margin ${pct.toFixed(1)}% dari harga jual</span>`;
     $("#out-roas").textContent = c.breakeven > 0 ? (Number(p.harga_jual) / c.breakeven).toFixed(2) + "×" : "–";
     const t = $("#target-input");
     t.placeholder = Math.round(c.recommended);
@@ -470,15 +489,58 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
   // =====================================================
   // TAB 2 — All campaigns (campaign → ad sets → ads)
   // =====================================================
+  let campFilter = "all"; // "all" | product id | "none"
+
   function renderCampaigns() {
     const root = $("#tab-campaigns");
-    const body = state.campaigns.map(campaignHtml).join("");
+    const known = new Set(state.products.map((p) => p.id));
+    if (campFilter !== "all" && campFilter !== "none" && !known.has(campFilter)) campFilter = "all";
+
+    const filterOpts = [`<option value="all" ${campFilter === "all" ? "selected" : ""}>All products</option>`]
+      .concat(state.products.map((p) => `<option value="${p.id}" ${campFilter === p.id ? "selected" : ""}>${esc(p.name)}</option>`))
+      .concat([`<option value="none" ${campFilter === "none" ? "selected" : ""}>No product</option>`])
+      .join("");
+
+    let groups = "";
+    state.products.forEach((p) => {
+      if (campFilter !== "all" && campFilter !== p.id) return;
+      const c = calc(p);
+      const camps = state.campaigns.filter((x) => x.product_id === p.id).map(campaignHtml).join("");
+      groups += `
+        <section class="prod-group" data-prodgroup="${p.id}">
+          <div class="prod-head">
+            <div>
+              <h3>${esc(p.name)}</h3>
+              <div class="thresholds">
+                <span class="chip p">Target CPA ${rp(c.target)}</span>
+                <span class="chip b">Break-even CPA ${rp(c.breakeven)}</span>
+                <span class="chip">Profit @ target ${rp(c.breakeven - c.target)}/order</span>
+              </div>
+            </div>
+            <button class="btn primary small" data-add-campaign="${p.id}">+ Add campaign</button>
+          </div>
+          ${camps || '<div class="card empty">No campaigns for this product yet.</div>'}
+        </section>`;
+    });
+
+    const orphans = state.campaigns.filter((x) => !known.has(x.product_id));
+    if ((campFilter === "all" || campFilter === "none") && (orphans.length || !state.products.length)) {
+      groups += `
+        <section class="prod-group">
+          <div class="prod-head">
+            <div><h3>No product</h3><div class="muted" style="font-size:13px">Pick a product on each campaign to get colour thresholds.</div></div>
+            <button class="btn small" data-add-campaign="">+ Add campaign</button>
+          </div>
+          ${orphans.map(campaignHtml).join("") || '<div class="card empty">Add a product in the Break-even CPA tab first.</div>'}
+        </section>`;
+    }
+
     root.innerHTML = `
       <div class="camp-head">
         <h2>All Campaigns</h2>
-        <button class="btn primary" id="add-campaign">+ Add campaign</button>
+        <div class="filter-bar"><label>Show product<select id="camp-filter">${filterOpts}</select></label></div>
       </div>
-      ${body || '<div class="card empty">No campaigns yet. Click “+ Add campaign”.</div>'}`;
+      ${groups}`;
   }
 
   function campaignHtml(c) {
@@ -571,6 +633,7 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
     // persist
     root.addEventListener("change", async (e) => {
       const el = e.target;
+      if (el.id === "camp-filter") { campFilter = el.value; renderCampaigns(); return; }
       if (el.dataset.file) return uploadImage(el.dataset.file, el.files[0]);
       const { table, id, field } = el.dataset;
       if (!table) return;
@@ -589,8 +652,10 @@ label > input, label > select, label > .input-wrap { margin-top: 4px; }
       const t = e.target.closest("button, .thumb");
       if (!t) return;
 
-      if (t.id === "add-campaign") {
-        const { data, error } = await sb.from("campaigns").insert({ name: `Campaign ${state.campaigns.length + 1}`, product_id: state.activeProduct }).select().single();
+      if (t.dataset.addCampaign !== undefined) {
+        const pid = t.dataset.addCampaign || null;
+        const n = state.campaigns.filter((c) => c.product_id === pid).length + 1;
+        const { data, error } = await sb.from("campaigns").insert({ name: `Campaign ${n}`, product_id: pid }).select().single();
         if (error) return toast(error.message, true);
         state.campaigns.push(data);
         return renderCampaigns();
